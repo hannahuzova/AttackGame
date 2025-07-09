@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/background_menu.png</file>
+        <file>images/evil_aura_earth.png</file>
+        <file>images/evil_aura_air.png</file>
+        <file>images/evil_aura_water.png</file>
+        <file>images/evil_aura_fire.png</file>
+        <file>images/good_aura_air.png</file>
+        <file>images/good_aura_earth.png</file>
+        <file>images/good_aura_water.png</file>
+        <file>images/good_aura_fire.png</file>
+        <file>images/evil_air.png</file>
+        <file>images/evil_water.png</file>
+        <file>images/evil_earth.png</file>
+        <file>images/evil_fire.png</file>
+        <file>images/good_air.png</file>
+        <file>images/good_earth.png</file>
+        <file>images/good_water.png</file>
+        <file>images/good_fire.png</file>
+        <file>images/background_level.png</file>
+        <file>fonts/fritzquadratacyrillic.ttf</file>
+    </qresource>
+</RCC>
