@@ -2,91 +2,65 @@
 #include "attackbar.h"
 #include "projectile.h"
 #include "hpbar.h"
-#include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QToolButton>
 #include <QPushButton>
 #include <QLabel>
 #include <QTimer>
 #include <QPropertyAnimation>
-#include <QFontDatabase>
 #include <QRandomGenerator>
 #include <QMessageBox>
 
-GameWidget::GameWidget(QWidget* parent): QWidget(parent)
+GameWidget::GameWidget(int lvl, QWidget* parent)
+    : QWidget(parent), level_(lvl)
 {
     setObjectName("levelScreen");
-    setAttribute(Qt::WA_StyledBackground, true);
+    setFixedSize(1280,720);
+    setAttribute(Qt::WA_StyledBackground,true);
+    setStyleSheet(QString(
+                      "QWidget#levelScreen{background-image:url(:/images/background_level_%1.png);"
+                      "background-repeat:no-repeat;background-position:center;background-size:cover;}"
+                      ).arg(level_));
 
-    // 2. Проверьте загрузку фона
-    QPixmap bgTest(":/images/background_level.png");
-    if (bgTest.isNull()) {
-        qDebug() << "Ошибка: фон не загружен!";
-    }
-    else {
-        qDebug() << "Фон загружен, размер:" << bgTest.size();
-    }
-
-    int fontId = QFontDatabase::addApplicationFont(":/fonts/fritzquadratacyrillic.ttf");
-    if (fontId == -1) {
-        qWarning() << "Failed to load font! Using fallback";
-    }
-
-    // 3. Установите фиксированный размер
-    setFixedSize(1280, 720);
-
-    // 4. Примените стиль с !important для приоритета
-    setStyleSheet(R"(
-        QWidget#levelScreen {
-            background-image: url(:/images/background_level.png) !important;
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: cover;
-        }
-        QLabel, QPushButton { color: white; }
-        QPushButton {
-            background: rgba(0, 0, 0, 150);
-            border: 2px solid #666;
-            border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 24px;
-        }
-    )");
-
+    /* ---------- макет ---------- */
     QVBoxLayout* root = new QVBoxLayout(this);
 
-    // ---- Heroes row ----
+    /* ---------- панель героев ---------- */
     QHBoxLayout* top = new QHBoxLayout;
     root->addLayout(top);
 
-    QStringList elems = {"fire","water","earth","air"};
-    for(int i=0;i<4;++i){
+    const QStringList elems{ "fire","water","earth","air" };
+    const int heroHP = 500;
+
+    for (int i=0;i<4;++i) {
         QToolButton* btn = new QToolButton(this);
+        btn->setFocusPolicy(Qt::NoFocus);
         btn->setCheckable(true);
         btn->setAutoExclusive(true);
         btn->setIcon(QPixmap(":/images/good_"+elems[i]+".png"));
-        btn->setIconSize(QSize(96,96));       // enlarged
+        btn->setIconSize(QSize(96,96));
         btn->setFixedSize(104,104);
-        btn->setStyleSheet("background: transparent;");
+        btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
-        HPBar* hpBar = new HPBar(500,this);
+        HPBar* hp = new HPBar(heroHP,this);
 
-        QVBoxLayout* cell = new QVBoxLayout;
-        QWidget* w = new QWidget(this);
-        w->setLayout(cell);
-        cell->addWidget(btn,0,Qt::AlignHCenter);
-        cell->addWidget(hpBar);
-        top->addWidget(w);
+        QVBoxLayout* cellL = new QVBoxLayout;
+        cellL->addWidget(btn,0,Qt::AlignHCenter);
+        cellL->addWidget(hp);
 
-        heroes_[i] = {elems[i], 500, nullptr, hpBar};
+        QWidget* cell = new QWidget(this);
+        cell->setLayout(cellL);
+        top->addWidget(cell);
 
-        connect(btn, &QToolButton::clicked, this, [this,i]{ onHeroClicked(i); });
-        if(i==0) btn->setChecked(true);
+        heroes_[i] = { elems[i], heroHP, nullptr, hp, btn };
+        connect(btn,&QToolButton::clicked,this,[this,i]{ onHeroClicked(i); });
+        if (i==0) btn->setChecked(true);
     }
 
-    // ---- Battle area ----
-    QHBoxLayout* battle = new QHBoxLayout;
-    root->addLayout(battle,1);
+    /* ---------- поле боя ---------- */
+    QHBoxLayout* arena = new QHBoxLayout;
+    root->addLayout(arena,1);
 
     heroSprite_ = new QLabel(this);
     heroSprite_->setPixmap(QPixmap(":/images/good_fire.png"));
@@ -98,122 +72,145 @@ GameWidget::GameWidget(QWidget* parent): QWidget(parent)
     enemySprite_->setScaledContents(true);
     enemySprite_->setFixedSize(200,200);
 
-    // column for hero sprite + placeholder (no global bar)
-    QVBoxLayout* heroCol = new QVBoxLayout;
-    heroCol->addWidget(heroSprite_,0,Qt::AlignLeft|Qt::AlignVCenter);
-    heroCol->addStretch();
+    const int enemyBase = 500 + (level_-1)*100;
+    enemyHpBar_ = new HPBar(enemyBase,this);
 
-    QVBoxLayout* enemyCol = new QVBoxLayout;
-    enemyCol->addWidget(enemySprite_,0,Qt::AlignRight|Qt::AlignVCenter);
-    enemyHpBar_ = new HPBar(500,this);
-    enemyCol->addWidget(enemyHpBar_,0,Qt::AlignRight);
-    battle->addLayout(heroCol,1);
-    battle->addLayout(enemyCol,1);
+    QVBoxLayout* heroC = new QVBoxLayout;
+    heroC->addWidget(heroSprite_,0,Qt::AlignLeft|Qt::AlignVCenter);
+    heroC->addStretch();
 
-    for(int i=0;i<4;++i)
-        enemies_[i] = {elems[i], 500, nullptr, nullptr};
+    QVBoxLayout* enemyC = new QVBoxLayout;
+    enemyC->addWidget(enemySprite_,0,Qt::AlignRight|Qt::AlignVCenter);
+    enemyC->addWidget(enemyHpBar_,0,Qt::AlignRight);
 
-    // ---- Attack bar and button ----
-    bar_ = new AttackBar(this);
-    bar_->setFixedHeight(40);     // enlarged
-    bar_->start();
+    arena->addLayout(heroC,1);
+    arena->addLayout(enemyC,1);
 
-    atkBtn_ = new QPushButton("УДАР!",this);
-    atkBtn_->setStyleSheet(R"(
-        QPushButton {
-            color: #f0e6d2;
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                      stop:0 #8b4513, stop:1 #5d2906);
-            border: 2px solid #d4af37;
-            border-radius: 10px;
-            font-family: 'Fritz Quadrata Cyrillic', 'Friz Quadrata', sans-serif;
-            font-size: 24px;
-            padding: 10px;
-        }
-        QPushButton:hover {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                      stop:0 #9d5a1f, stop:1 #6d390c);
-        }
-        )");
+    for (int i=0;i<4;++i)
+        enemies_[i] = { elems[i], enemyBase, nullptr, nullptr, nullptr };
 
-    QFontDatabase::addApplicationFont(":/fonts/fritzquadratacyrillic.ttf");
-    QString fantasyFont = "Fritz Quadrata Cyrillic";
-    atkBtn_->setFont(fantasyFont);
-    atkBtn_->setFixedSize(160,60);
+    /* ---------- панель атаки ---------- */
+    bar_   = new AttackBar(this);
+    atkBtn_= new QPushButton("УДАР!",this);
+    atkBtn_->setFixedSize(180,60);
 
-    connect(bar_, &AttackBar::stopped, this, &GameWidget::onBarStopped);
-    connect(atkBtn_, &QPushButton::clicked, bar_, &AttackBar::handleClick); // simulate click
+    connect(bar_,   &AttackBar::stopped,this,&GameWidget::onBarStopped);
+    connect(atkBtn_,&QPushButton::clicked, bar_, &AttackBar::stop);
 
     QHBoxLayout* bottom = new QHBoxLayout;
     bottom->addWidget(bar_,1);
     bottom->addWidget(atkBtn_);
     root->addLayout(bottom);
 
+    /* ---------- таймер хода врага ---------- */
     timer_ = new QTimer(this);
     timer_->setSingleShot(true);
-    connect(timer_, &QTimer::timeout, this, &GameWidget::enemyAttack);
+    connect(timer_,&QTimer::timeout,this,&GameWidget::enemyAttack);
+
+    bar_->start();
 }
 
-void GameWidget::onHeroClicked(int idx){
+void GameWidget::onHeroClicked(int idx)
+{
+    if (heroes_[idx].hp==0) return;
     curHero_ = idx;
-    heroSprite_->setPixmap(QPixmap(":/images/good_" + heroes_[idx].element + ".png"));
+    heroSprite_->setPixmap(QPixmap(":/images/good_"+heroes_[idx].element+".png"));
 }
 
-int GameWidget::dmg(const QString& atk,const QString& def,int base){
-    QMap<QString,QString> adv{{"water","fire"},{"fire","earth"},{"earth","air"},{"air","water"}};
-    if(adv[atk]==def) return base*2;
-    if(adv[def]==atk) return base/2+10;
+int GameWidget::dmg(const QString& atk,const QString& def,int base)
+{
+    static QMap<QString,QString> adv{
+                                      {"water","fire"},{"fire","air"},{"air","earth"},{"earth","water"} };
+    if (adv[atk]==def) return base*2;
+    if (adv[def]==atk) return base/2 + 10;
     return base;
 }
 
-void GameWidget::projectile(bool fromHero,const QString& elem){
-    QString res = QString(":/images/%1_aura_%2.png").arg(fromHero?"good":"evil",elem);
-    Projectile* p = new Projectile(QPixmap(res), this);
-    int half = 40; // projectile half-size
-    QPoint s = (fromHero?heroSprite_:enemySprite_)->geometry().center();
-    QPoint e = (fromHero?enemySprite_:heroSprite_)->geometry().center();
-    p->move(s - QPoint(half,half));
+void GameWidget::projectile(bool fromHero,const QString& elem)
+{
+    QString res = QString(":/images/%1_aura_%2.png")
+    .arg(fromHero?"good":"evil", elem);
+    Projectile* p = new Projectile(QPixmap(res),this);
+
+    const QPoint src = (fromHero?heroSprite_:enemySprite_)->geometry().center();
+    const QPoint dst = (fromHero?enemySprite_:heroSprite_)->geometry().center();
+    p->move(src - QPoint(p->width()/2,p->height()/2));
     p->show();
-    QPropertyAnimation* a = new QPropertyAnimation(p,"pos",p);
-    a->setDuration(400);
-    a->setStartValue(s - QPoint(half,half));
-    a->setEndValue(e - QPoint(half,half));
-    connect(a, &QPropertyAnimation::finished, p, &Projectile::deleteLater);
-    a->start(QAbstractAnimation::DeleteWhenStopped);
+
+    auto* anim = new QPropertyAnimation(p,"pos",p);
+    anim->setDuration(400);
+    anim->setStartValue(src - QPoint(p->width()/2,p->height()/2));
+    anim->setEndValue  (dst - QPoint(p->width()/2,p->height()/2));
+    connect(anim,&QPropertyAnimation::finished,p,&QObject::deleteLater);
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
-void GameWidget::onBarStopped(int power){
-    bar_->start();
-    int damage = dmg(heroes_[curHero_].element, enemies_[curEnemy_].element, power);
+void GameWidget::onBarStopped(int power)
+{
+    if (!playerTurn_) return;
+    playerTurn_ = false;
+    atkBtn_->setEnabled(false);
+    bar_->setEnabled(false);
+
+    int damage = dmg(heroes_[curHero_].element,
+                     enemies_[curEnemy_].element, power);
     projectile(true, heroes_[curHero_].element);
 
-    enemies_[curEnemy_].hp -= damage;
-    if(enemies_[curEnemy_].hp < 0) enemies_[curEnemy_].hp = 0;
+    enemies_[curEnemy_].hp = qMax(0, enemies_[curEnemy_].hp - damage);
     enemyHpBar_->setValue(enemies_[curEnemy_].hp);
 
-    if(enemies_[curEnemy_].hp == 0){
+    if (enemies_[curEnemy_].hp == 0) {
         ++curEnemy_;
-        if(curEnemy_ >= 4){
-            QMessageBox::information(nullptr,"Победа!","Все враги повержены!");
+        if (curEnemy_ >= 4) {
+            QMessageBox::information(this,"Уровень пройден","Все враги побеждены!");
+            emit levelCompleted(level_);
             return;
         }
-        enemySprite_->setPixmap(QPixmap(":/images/evil_" + enemies_[curEnemy_].element + ".png"));
-        enemies_[curEnemy_].hp = 500;
-        enemyHpBar_->setValue(500);
+        enemySprite_->setPixmap(QPixmap(":/images/evil_"+enemies_[curEnemy_].element+".png"));
+        enemies_[curEnemy_].hp = enemyHpBar_->maximum();
+        enemyHpBar_->setValue(enemyHpBar_->maximum());
     }
     timer_->start(600);
 }
 
-void GameWidget::enemyAttack(){
-    int base = QRandomGenerator::global()->bounded(10,100);
-    int damage = dmg(enemies_[curEnemy_].element, heroes_[curHero_].element, base);
-    projectile(false, enemies_[curEnemy_].element);
+void GameWidget::enemyAttack()
+{
+    const int base   = QRandomGenerator::global()->bounded(10,100);
+    const int damage = dmg(enemies_[curEnemy_].element,
+                           heroes_[curHero_].element, base);
 
-    heroes_[curHero_].hp -= damage;
-    if(heroes_[curHero_].hp < 0) heroes_[curHero_].hp = 0;
+    projectile(false,enemies_[curEnemy_].element);
+
+    heroes_[curHero_].hp = qMax(0, heroes_[curHero_].hp - damage);
     heroes_[curHero_].hpBar->setValue(heroes_[curHero_].hp);
 
-    if(heroes_[curHero_].hp == 0){
-        QMessageBox::information(nullptr,"Поражение!","Ваш герой умер! Поменяйте его, или выйдите из игры");
+    if (heroes_[curHero_].hp == 0) {
+        heroes_[curHero_].btn->setEnabled(false);
+        switchToNextAliveHero();
+        if (aliveHeroes()==0) {
+            QMessageBox::information(this,"Поражение","Все герои пали!");
+            return;
+        }
     }
+    playerTurn_ = true;
+    atkBtn_->setEnabled(true);
+    bar_->setEnabled(true);
+    bar_->start();
+}
+
+void GameWidget::switchToNextAliveHero()
+{
+    for (int i=0;i<4;++i) {
+        int idx = (curHero_+1+i)%4;
+        if (heroes_[idx].hp>0) {
+            heroes_[idx].btn->setChecked(true);
+            onHeroClicked(idx);
+            return;
+        }
+    }
+}
+
+int GameWidget::aliveHeroes() const
+{
+    int c=0;  for (auto& h:heroes_) if (h.hp>0) ++c;  return c;
 }

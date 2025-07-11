@@ -1,20 +1,21 @@
+
 QT += widgets
-CONFIG += c++17
+TEMPLATE = app
+TARGET = AttackGame
 
 SOURCES += \
-    hpbar.cpp \
     main.cpp \
     mainwindow.cpp \
     gamewidget.cpp \
     attackbar.cpp \
-    projectile.cpp
+    projectile.cpp \
+    hpbar.cpp
 
 HEADERS += \
-    hpbar.h \
     mainwindow.h \
     gamewidget.h \
     attackbar.h \
-    projectile.h
+    projectile.h \
+    hpbar.h
 
-RESOURCES += \
-    resources.qrc
+RESOURCES += resources.qrc

@@ -17,7 +17,10 @@
         <file>images/good_earth.png</file>
         <file>images/good_water.png</file>
         <file>images/good_fire.png</file>
-        <file>images/background_level.png</file>
         <file>fonts/fritzquadratacyrillic.ttf</file>
+        <file>images/background_level_1.png</file>
+        <file>images/background_level_2.png</file>
+        <file>images/background_level_3.png</file>
+        <file>images/background_level_4.png</file>
     </qresource>
 </RCC>

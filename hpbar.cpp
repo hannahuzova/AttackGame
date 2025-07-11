@@ -10,7 +10,7 @@ HPBar::HPBar(int maximum, QWidget* parent)
 
 void HPBar::setValue(int v)
 {
-    val_ = qMax(0, qMin(v, max_));
+    val_ = qBound(0, v, max_);
     update();
 }
 
@@ -19,22 +19,24 @@ void HPBar::paintEvent(QPaintEvent*)
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
 
-    QRect bar = rect().adjusted(2, 2, -2, -2);
+    QRect frame = rect().adjusted(2, 2, -2, -2);
     p.setBrush(QColor(50, 50, 50));
     p.setPen(Qt::NoPen);
-    p.drawRoundedRect(bar, 4, 4);
+    p.drawRoundedRect(frame, 4, 4);
 
     if (val_ > 0) {
-        double ratio = static_cast<double>(val_) / max_;
-        int w = static_cast<int>(bar.width() * ratio);
-        QRect fill(bar.left(), bar.top(), w, bar.height());
+        const double ratio = double(val_) / max_;
+        QRect fill(frame.left(), frame.top(),
+                   int(frame.width() * ratio),
+                   frame.height());
         QLinearGradient g(fill.topLeft(), fill.topRight());
         g.setColorAt(0, QColor(200, 40, 40));
-        g.setColorAt(1, QColor(120, 0, 0));
+        g.setColorAt(1, QColor(120,  0,  0));
         p.setBrush(g);
         p.drawRoundedRect(fill, 4, 4);
     }
 
     p.setPen(Qt::white);
-    p.drawText(bar, Qt::AlignCenter, QString::number(val_) + " / " + QString::number(max_));
+    p.drawText(frame, Qt::AlignCenter,
+               QString("%1 / %2").arg(val_).arg(max_));
 }
