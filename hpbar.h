@@ -8,7 +8,7 @@ public:
     explicit HPBar(int maximum = 500, QWidget* parent = nullptr);
 
     void setValue(int v);
-    int  value()   const { return val_; }
+    int  value() const { return val_; }
     int  maximum() const { return max_; }
 
 protected:

@@ -2,6 +2,7 @@
 #include "attackbar.h"
 #include "projectile.h"
 #include "hpbar.h"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolButton>
@@ -11,6 +12,25 @@
 #include <QPropertyAnimation>
 #include <QRandomGenerator>
 #include <QMessageBox>
+
+namespace {
+const char* BTN_CSS = R"(
+QPushButton, QToolButton {
+    color: #f0e6d2;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #8b4513, stop:1 #5d2906);
+    border: 2px solid #d4af37;
+    border-radius: 10px;
+    font-family: 'Fritz Quadrata Cyrillic', 'Friz Quadrata', sans-serif;
+    font-size: 24px;
+    padding: 10px;
+}
+QPushButton:hover:enabled, QToolButton:hover:enabled {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #9d5a1f, stop:1 #6d390c);
+}
+)";
+}
 
 GameWidget::GameWidget(int lvl, QWidget* parent)
     : QWidget(parent), level_(lvl)
@@ -23,10 +43,8 @@ GameWidget::GameWidget(int lvl, QWidget* parent)
                       "background-repeat:no-repeat;background-position:center;background-size:cover;}"
                       ).arg(level_));
 
-    /* ---------- макет ---------- */
     QVBoxLayout* root = new QVBoxLayout(this);
 
-    /* ---------- панель героев ---------- */
     QHBoxLayout* top = new QHBoxLayout;
     root->addLayout(top);
 
@@ -42,6 +60,9 @@ GameWidget::GameWidget(int lvl, QWidget* parent)
         btn->setIconSize(QSize(96,96));
         btn->setFixedSize(104,104);
         btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        btn->setAutoRaise(false);
+        btn->setStyleSheet("QToolButton { border: none; background: none; }"
+                           "QToolButton::pressed { border: none; background: none; }");
 
         HPBar* hp = new HPBar(heroHP,this);
 
@@ -58,7 +79,6 @@ GameWidget::GameWidget(int lvl, QWidget* parent)
         if (i==0) btn->setChecked(true);
     }
 
-    /* ---------- поле боя ---------- */
     QHBoxLayout* arena = new QHBoxLayout;
     root->addLayout(arena,1);
 
@@ -86,23 +106,22 @@ GameWidget::GameWidget(int lvl, QWidget* parent)
     arena->addLayout(heroC,1);
     arena->addLayout(enemyC,1);
 
-    for (int i=0;i<4;++i)
-        enemies_[i] = { elems[i], enemyBase, nullptr, nullptr, nullptr };
+    for (int i=0;i<4;++i) enemies_[i] = { elems[i], enemyBase, nullptr, nullptr, nullptr };
 
-    /* ---------- панель атаки ---------- */
-    bar_   = new AttackBar(this);
+
+    bar_ = new AttackBar(this);
     atkBtn_= new QPushButton("УДАР!",this);
+    atkBtn_->setStyleSheet(BTN_CSS);
     atkBtn_->setFixedSize(180,60);
 
-    connect(bar_,   &AttackBar::stopped,this,&GameWidget::onBarStopped);
-    connect(atkBtn_,&QPushButton::clicked, bar_, &AttackBar::stop);
+    connect(bar_, &AttackBar::stopped,this,&GameWidget::onBarStopped);
+    connect(atkBtn_, &QPushButton::clicked, bar_, &AttackBar::stop);
 
     QHBoxLayout* bottom = new QHBoxLayout;
     bottom->addWidget(bar_,1);
     bottom->addWidget(atkBtn_);
     root->addLayout(bottom);
 
-    /* ---------- таймер хода врага ---------- */
     timer_ = new QTimer(this);
     timer_->setSingleShot(true);
     connect(timer_,&QTimer::timeout,this,&GameWidget::enemyAttack);
@@ -119,8 +138,7 @@ void GameWidget::onHeroClicked(int idx)
 
 int GameWidget::dmg(const QString& atk,const QString& def,int base)
 {
-    static QMap<QString,QString> adv{
-                                      {"water","fire"},{"fire","air"},{"air","earth"},{"earth","water"} };
+    static QMap<QString,QString> adv{ {"water","fire"},{"fire","air"},{"air","earth"},{"earth","water"} };
     if (adv[atk]==def) return base*2;
     if (adv[def]==atk) return base/2 + 10;
     return base;
@@ -140,7 +158,7 @@ void GameWidget::projectile(bool fromHero,const QString& elem)
     auto* anim = new QPropertyAnimation(p,"pos",p);
     anim->setDuration(400);
     anim->setStartValue(src - QPoint(p->width()/2,p->height()/2));
-    anim->setEndValue  (dst - QPoint(p->width()/2,p->height()/2));
+    anim->setEndValue(dst - QPoint(p->width()/2,p->height()/2));
     connect(anim,&QPropertyAnimation::finished,p,&QObject::deleteLater);
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
@@ -152,8 +170,7 @@ void GameWidget::onBarStopped(int power)
     atkBtn_->setEnabled(false);
     bar_->setEnabled(false);
 
-    int damage = dmg(heroes_[curHero_].element,
-                     enemies_[curEnemy_].element, power);
+    int damage = dmg(heroes_[curHero_].element, enemies_[curEnemy_].element, power);
     projectile(true, heroes_[curHero_].element);
 
     enemies_[curEnemy_].hp = qMax(0, enemies_[curEnemy_].hp - damage);
@@ -162,7 +179,6 @@ void GameWidget::onBarStopped(int power)
     if (enemies_[curEnemy_].hp == 0) {
         ++curEnemy_;
         if (curEnemy_ >= 4) {
-            QMessageBox::information(this,"Уровень пройден","Все враги побеждены!");
             emit levelCompleted(level_);
             return;
         }
@@ -176,8 +192,7 @@ void GameWidget::onBarStopped(int power)
 void GameWidget::enemyAttack()
 {
     const int base   = QRandomGenerator::global()->bounded(10,100);
-    const int damage = dmg(enemies_[curEnemy_].element,
-                           heroes_[curHero_].element, base);
+    const int damage = dmg(enemies_[curEnemy_].element, heroes_[curHero_].element, base);
 
     projectile(false,enemies_[curEnemy_].element);
 
@@ -189,6 +204,7 @@ void GameWidget::enemyAttack()
         switchToNextAliveHero();
         if (aliveHeroes()==0) {
             QMessageBox::information(this,"Поражение","Все герои пали!");
+            emit levelFailed();
             return;
         }
     }

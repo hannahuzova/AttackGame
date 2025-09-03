@@ -11,10 +11,10 @@ class HPBar;
 class QToolButton;
 
 struct Fighter {
-    QString      element;
-    int          hp;
-    QLabel*      sprite;
-    HPBar*       hpBar;
+    QString element;
+    int hp;
+    QLabel* sprite;
+    HPBar* hpBar;
     QToolButton* btn;
 };
 
@@ -25,6 +25,7 @@ public:
 
 signals:
     void levelCompleted(int level);
+    void levelFailed();
 
 private slots:
     void onHeroClicked(int idx);
@@ -32,24 +33,24 @@ private slots:
     void enemyAttack();
 
 private:
-    int  dmg(const QString& atk, const QString& def, int base);
+    int dmg(const QString& atk, const QString& def, int base);
     void projectile(bool fromHero, const QString& elem);
     void switchToNextAliveHero();
-    int  aliveHeroes() const;
+    int aliveHeroes() const;
 
     std::array<Fighter,4> heroes_;
     std::array<Fighter,4> enemies_;
-    int  curHero_   = 0;
-    int  curEnemy_  = 0;
-    int  level_     = 1;
+    int  curHero_ = 0;
+    int  curEnemy_ = 0;
+    int  level_ = 1;
     bool playerTurn_= true;
 
-    AttackBar*  bar_;
+    AttackBar* bar_;
     QPushButton* atkBtn_;
-    QTimer*     timer_;
+    QTimer* timer_;
 
     QLabel* heroSprite_;
     QLabel* enemySprite_;
-    HPBar*  enemyHpBar_;
+    HPBar* enemyHpBar_;
 };
 #endif

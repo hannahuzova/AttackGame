@@ -17,12 +17,12 @@ public slots:
 
 protected:
     void mousePressEvent(QMouseEvent*) override;
-    void paintEvent(QPaintEvent*)      override;
+    void paintEvent(QPaintEvent*) override;
 
 private:
     QTimer* timer_;
-    int  pos_;
-    int  dir_;
+    int pos_;
+    int dir_;
     bool running_;
 };
 #endif

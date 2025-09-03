@@ -15,14 +15,16 @@ AttackBar::AttackBar(QWidget* parent)
         if (!running_) return;
         pos_ += dir_;
         if (pos_ >= 100) { pos_ = 100; dir_ = -1; }
-        if (pos_ <=   0) { pos_ =   0; dir_ =  1; }
+        if (pos_ <= 0) { pos_ = 0; dir_ =  1; }
         update();
     });
 }
 
 void AttackBar::start()
 {
-    pos_ = 0; dir_ = 1; running_ = true;
+    pos_ = 0;
+    dir_ = 1;
+    running_ = true;
     timer_->start();
     update();
 }

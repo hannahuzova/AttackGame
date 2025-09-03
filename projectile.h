@@ -9,8 +9,8 @@ public:
         : QLabel(parent)
     {
         setPixmap(pm);
-        setScaledContents(true);        // ровно вся картинка-аура
-        setFixedSize(pm.size());        // больше не обрезаем её до 80×80
+        setScaledContents(true);
+        setFixedSize(pm.size()/5);
         setAttribute(Qt::WA_TranslucentBackground);
     }
 };

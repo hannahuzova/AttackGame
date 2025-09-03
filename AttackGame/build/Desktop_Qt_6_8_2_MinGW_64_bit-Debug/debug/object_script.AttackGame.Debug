@@ -1,0 +1,12 @@
+debug/main.o
+debug/mainwindow.o
+debug/gamewidget.o
+debug/attackbar.o
+debug/projectile.o
+debug/hpbar.o
+debug/qrc_resources.o
+debug/moc_mainwindow.o
+debug/moc_gamewidget.o
+debug/moc_attackbar.o
+debug/moc_projectile.o
+debug/moc_hpbar.o

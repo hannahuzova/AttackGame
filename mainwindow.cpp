@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QFontDatabase>
+#include <QVector>
 #include <QApplication>
 #include <QMessageBox>
 
@@ -32,7 +33,6 @@ QPushButton:hover:enabled, QToolButton:hover:enabled {
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    /* ---------- шрифт ---------- */
     const int fid = QFontDatabase::addApplicationFont(":/fonts/fritzquadratacyrillic.ttf");
     if (fid != -1) {
         const QString fam = QFontDatabase::applicationFontFamilies(fid).value(0);
@@ -40,20 +40,18 @@ MainWindow::MainWindow(QWidget* parent)
             QApplication::setFont(QFont(fam));
     }
 
-    /* ---------- стек экранов ---------- */
     setFixedSize(1280,720);
     stack_ = new QStackedWidget(this);
     setCentralWidget(stack_);
 
-    QWidget* menu         = createMenu();
-    rules_                = createRules();
-    levelSelect_          = createLevelSelect();
+    QWidget* menu = createMenu();
+    rules_ = createRules();
+    levelSelect_ = createLevelSelect();
 
     stack_->addWidget(menu);
     stack_->addWidget(rules_);
     stack_->addWidget(levelSelect_);
 
-    /* ---------- переходы ---------- */
     connect(menu->findChild<QPushButton*>("startBtn"),
             &QPushButton::clicked,[this]{ stack_->setCurrentWidget(rules_); });
 
@@ -62,9 +60,12 @@ MainWindow::MainWindow(QWidget* parent)
                 refreshButtons();
                 stack_->setCurrentWidget(levelSelect_);
             });
+
+    connect(menu->findChild<QPushButton*>("mainMenuExitBtn"), &QPushButton::clicked, [] { QApplication::quit(); });
+    connect(rules_->findChild<QPushButton*>("rulesBackBtn"), &QPushButton::clicked, [this, menu] { stack_->setCurrentWidget(menu); });
+    connect(levelSelect_->findChild<QPushButton*>("levelSelectBackBtn"), &QPushButton::clicked, [this] { stack_->setCurrentWidget(rules_); });
 }
 
-/* ----------------------- экраны ----------------------- */
 QWidget* MainWindow::createMenu()
 {
     QWidget* w = new QWidget; w->setObjectName("menuScreen");
@@ -82,10 +83,15 @@ QWidget* MainWindow::createMenu()
     title->setAlignment(Qt::AlignCenter);
     l->addWidget(title);
 
-    QPushButton* start = new QPushButton("НАЧАТЬ",w);
+    QPushButton* start = new QPushButton("В ИГРУ!",w);
     start->setObjectName("startBtn");
     start->setFixedSize(300,80);
     l->addWidget(start,0,Qt::AlignHCenter);
+
+    QPushButton* exit = new QPushButton("Выйти",w);
+    exit->setObjectName("mainMenuExitBtn");
+    exit->setFixedSize(300,80);
+    l->addWidget(exit,0,Qt::AlignHCenter);
 
     l->addStretch();
     applyDarkStyle(w);
@@ -114,7 +120,7 @@ QWidget* MainWindow::createRules()
         "li:before{content:'✦';color:#d4af37;position:absolute;left:-20px;}"
         ".element{font-size:24px;}"
         "</style></head><body>"
-        "<h1>✨ ПРАВИЛА БИТВ ✨</h1>"
+        "<h1>✨ ПРАВИЛА СРАЖЕНИЙ ✨</h1>"
         "<ul>"
         "<li>Некоторые персонажи сильнее других, в зависимости от противника.</li>"
         "<li>Каждый герой реагирует по-своему на удары врага.</li>"
@@ -134,8 +140,13 @@ QWidget* MainWindow::createRules()
 
     QPushButton* play = new QPushButton("⚔️ В БОЙ!",w);
     play->setObjectName("playBtn");
-    play->setFixedSize(320,90);
+    play->setFixedSize(300,80);
     l->addWidget(play,0,Qt::AlignHCenter);
+
+    QPushButton* rulesBack = new QPushButton("Назад",w);
+    rulesBack->setObjectName("rulesBackBtn");
+    rulesBack->setFixedSize(300,80);
+    l->addWidget(rulesBack,0,Qt::AlignHCenter);
 
     l->addStretch();
     applyDarkStyle(w);
@@ -158,30 +169,34 @@ QWidget* MainWindow::createLevelSelect()
     v->addLayout(h);
     v->addStretch();
 
+    QVector<QString> level_names {"Загадочный Лес", "Живая роща", "Водопад смерти", "Раскаленная долина"};
     for (int i=0;i<4;++i) {
         QToolButton* btn = new QToolButton(w);
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-        btn->setIcon(QPixmap(QString(":/images/level_preview_%1.png").arg(i+1)));
-        btn->setIconSize(QSize(128,128));
-        btn->setText(QString("Уровень %1").arg(i+1));
+        btn->setIcon(QPixmap(QString(":/images/background_level_%1.png").arg(i+1)));
+        btn->setIconSize(QSize(320, 320));
+        btn->setText(QString(level_names[i]));
         btn->setFocusPolicy(Qt::NoFocus);
         btn->setCheckable(false);
-        btn->setMinimumSize(160,180);
+        btn->setMinimumSize(240,600);
 
         h->addWidget(btn,1);
         levelBtns_[i] = btn;
         connect(btn,&QToolButton::clicked,this,[this,i]{ startLevel(i+1); });
     }
 
+    QPushButton* levelSelectBack = new QPushButton("НАЗАД",w);
+    levelSelectBack->setObjectName("levelSelectBackBtn");
+    levelSelectBack->setFixedSize(300,80);
+    v->addWidget(levelSelectBack,0,Qt::AlignLeft);
+
     applyDarkStyle(w);
     refreshButtons();
     return w;
 }
 
-/* ----------------------- вспомогательные ----------------------- */
 void MainWindow::applyDarkStyle(QWidget* root)
 {
-    // добавляем общий цвет и стиль кнопок, не перезаписывая фон
     root->setStyleSheet(root->styleSheet() +
                         " *{color:#f0f0f0;}"
                         " QToolTip{color:#f0f0f0;background:#404040;}");
@@ -202,17 +217,37 @@ void MainWindow::startLevel(int level)
     game_ = new GameWidget(level,this);
     stack_->addWidget(game_);
     stack_->setCurrentWidget(game_);
-    connect(game_,&GameWidget::levelCompleted,this,&MainWindow::onLevelCompleted);
+    connect(game_, &GameWidget::levelCompleted, this, &MainWindow::onLevelCompleted);
+    connect(game_, &GameWidget::levelFailed, this, &MainWindow::onLevelFailed);
 }
 
 void MainWindow::onLevelCompleted(int lvl)
 {
     if (lvl == 4) {
-        QMessageBox::information(this,"Победа","Вы прошли игру!");
+        QMessageBox box(this);
+        box.setWindowTitle("Победа!");
+        box.setIconPixmap(QPixmap(":/images/victory.png"));
+        box.exec();
+
         unlockedLevel_ = 4;
-    } else if (unlockedLevel_ < lvl+1) {
-        ++unlockedLevel_;
     }
+    else {
+        QMessageBox::information(this, "Уровень пройден", QString("Уровень %1 пройден!").arg(lvl));
+        if (unlockedLevel_ < lvl + 1) ++unlockedLevel_;
+    }
+
+    refreshButtons();
+    stack_->setCurrentWidget(levelSelect_);
+}
+
+void MainWindow::onLevelFailed()
+{
+    if (game_) {
+        stack_->removeWidget(game_);
+        game_->deleteLater();
+        game_ = nullptr;
+    }
+
     refreshButtons();
     stack_->setCurrentWidget(levelSelect_);
 }
